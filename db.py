@@ -32,5 +32,24 @@ def get_connection():
                     icon TEXT
                  )
                 """)
-
+    
+    conn.execute("""
+                 CREATE TABLE IF NOT EXISTS price_changes (
+                    item_id INTEGER PRIMARY KEY,
+                 current_price INTEGER,
+                 price_24h_ago INTEGER,
+                 percent_change REAL,
+                 calculated_at INTEGER NOT NULL
+                 )
+                """)
+    
+    conn.execute("""
+                 CREATE TABLE IF NOT EXISTS volatility(
+                 item_id INTEGER PRIMARY KEY,
+                 mean_price REAL,
+                 std_dev REAL,
+                 relative_volatility REAL,
+                 calculated_at INTEGER NOT NULL
+                 )
+                """)
     return conn
