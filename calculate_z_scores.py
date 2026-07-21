@@ -4,7 +4,7 @@ import time
 query  = """
 SELECT 
     latest.item_id,
-    ROUND ((latest.high_price - ma.moving_avg) / vol.std_dev, 2) AS z_score
+    ROUND (((latest.high_price - ma.moving_avg) / vol.std_dev)::NUMERIC, 2) AS z_score
 FROM (
     SELECT item_id, high_price
     FROM price_snapshots
@@ -13,20 +13,23 @@ FROM (
 ) latest
 JOIN moving_averages ma
     ON latest.item_id = ma.item_id
-    AND ma.window_size = ?
+    AND ma.window_size = %s
 JOIN volatility vol
-    ON latest.item_id - vol.item_id
+    ON latest.item_id = vol.item_id
     AND  vol.std_dev != 0
 """
 
 def calculate_z_scores(conn, window_size):
-    return conn.execute(query, (window_size,)).fetchall()
+    cur = conn.cursor()
+    cur.execute(query, (window_size,))
+    return cur.fetchall()
 
 def store_z_scores(conn, rows, calculated_at):
     data = [(item_id, z, calculated_at) for item_id, z in rows]
-    conn.executemany("""
+    cur = conn.cursor()
+    cur.executemany("""
             INSERT INTO z_scores (item_id, z_score, calculated_at)
-            VALUES (?, ?, ?)
+            VALUES (%s, %s, %s)
             ON CONFLICT(item_id) DO UPDATE SET
                      z_score = excluded.z_score,
                      calculated_at = excluded.calculated_at
@@ -37,9 +40,9 @@ if __name__ == "__main__":
     conn = get_connection()
     calculated_at = int(time.time())
 
-    rows = calculate_z_scores(conn, window_size=6)
+    rows = calculate_z_scores(conn, window_size=36)
     print(f"Calculated z-scores for {len(rows)} items")
     store_z_scores(conn, rows, calculated_at)
 
-    conn.close
+    conn.close()
     print("Done")

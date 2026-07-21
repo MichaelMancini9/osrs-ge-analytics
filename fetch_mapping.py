@@ -1,7 +1,5 @@
 from db import get_connection, BASE_URL, HEADERS
 import requests
-import json
-import sqlite3
 import time
 
 def fetch_mapping():
@@ -29,9 +27,10 @@ def build_item_rows(mapping):
     return rows
 
 def upsert_items(conn,rows):
-    conn.executemany("""
+    cur = conn.cursor()
+    cur.executemany("""
         INSERT INTO items (item_id,  name, members, lowalch, ge_limit, value, highalch, examine, icon)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT(item_id) DO UPDATE SET
             name = excluded.name,
             members = excluded.members,

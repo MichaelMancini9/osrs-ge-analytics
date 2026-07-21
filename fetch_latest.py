@@ -1,5 +1,4 @@
 import requests
-import sqlite3
 import time
 from db import get_connection, BASE_URL, HEADERS
 
@@ -27,9 +26,10 @@ def build_rows(items, collected_at):
 
 
 def insert_snapshot(conn, rows):
-    conn.executemany("""
+    cur = conn.cursor()
+    cur.executemany("""
         INSERT INTO price_snapshots (item_id, high_price, high_time, low_price, low_time, collected_at)
-        VALUES (?, ?, ?, ?, ?, ?)
+        VALUES (%s, %s, %s, %s, %s, %s)
     """, rows)
     conn.commit()
 
@@ -46,4 +46,4 @@ if __name__ == "__main__":
     insert_snapshot(conn, rows)
     conn.close()
 
-    print(f"Inserted {len(rows)} rows into osrs_data.db")
+    print(f"Inserted {len(rows)} rows into Postgres")

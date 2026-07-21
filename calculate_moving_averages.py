@@ -18,25 +18,28 @@ SELECT
     item_id,
     AVG(high_price) AS moving_avg
 FROM ranked
-WHERE rn <= ?
+WHERE rn <= %s
 GROUP BY item_id
 """
 
 def calculate_moving_averages(conn, window_size):
-    return conn.execute(query, (window_size,)).fetchall()
+    cur = conn.cursor()
+    cur.execute(query, (window_size,))
+    return cur.fetchall()
 
 def store_moving_averages(conn, rows, window_size, calculated_at):
     data = [(item_id, window_size, avg, calculated_at) for item_id, avg in rows]
-    conn.executemany("""
+    cur = conn.cursor()
+    cur.executemany("""
         INSERT INTO moving_averages (item_id, window_size, moving_avg, calculated_at)
-        VALUES (?, ?, ?, ?)
+        VALUES (%s, %s, %s, %s)
         ON CONFLICT(item_id, window_size) DO UPDATE SET
             moving_avg = excluded.moving_avg,
             calculated_at = excluded.calculated_at
     """, data)
     conn.commit()
 
-WINDOW_PRESETS = [6,48,336]
+WINDOW_PRESETS = [36, 288, 2016]
 
 if __name__ == "__main__":
     conn = get_connection()

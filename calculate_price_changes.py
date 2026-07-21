@@ -24,20 +24,23 @@ WITH latest AS(
         latest.high_price AS current_price,
         past.high_price AS price_24h_ago,
         ROUND(
-            (CAST(latest.high_price AS REAL) - past.high_price) / past.high_price * 100, 2)
+            (CAST(latest.high_price AS NUMERIC) - past.high_price) / past.high_price * 100, 2)
             AS percent_change
     FROM latest
     JOIN past ON latest.item_id = past.item_id
 """
 
 def calculate_24h_changes(conn):
-    return conn.execute(query).fetchall()
+    cur = conn.cursor()
+    cur.execute(query)
+    return cur.fetchall()
 
 def store_price_changes(conn, rows, calculated_at):
     data = [(item_id, current, past, pct, calculated_at) for item_id, current, past, pct in rows]
-    conn.executemany("""
+    cur = conn.cursor()
+    cur.executemany("""
         INSERT INTO price_changes (item_id, current_price, price_24h_ago, percent_change, calculated_at)
-        VALUES (?, ?, ?, ?, ?)
+        VALUES (%s, %s, %s, %s, %s)
         ON CONFLICT(item_id) DO UPDATE SET
             current_price = excluded.current_price,
             price_24h_ago = excluded.price_24h_ago,

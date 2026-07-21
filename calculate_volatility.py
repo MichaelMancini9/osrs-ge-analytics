@@ -32,13 +32,16 @@ GROUP BY s.item_id, s.mean_price;
 """
 
 def calculate_volatility(conn):
-    return conn.execute(query).fetchall()
+    cur = conn.cursor()
+    cur.execute(query)
+    return cur.fetchall()
 
 def store_volatility(conn, rows, calculated_at):
     data = [(item_id, mean_price, std_dev, relative_volatility, calculated_at) for item_id, mean_price, std_dev, relative_volatility in rows]
-    conn.executemany("""
+    cur = conn.cursor()
+    cur.executemany("""
         INSERT INTO volatility (item_id, mean_price, std_dev, relative_volatility, calculated_at)
-        VALUES (?, ?, ?, ?, ?)
+        VALUES (%s, %s, %s, %s, %s)
         ON CONFLICT(item_id) DO UPDATE SET
             mean_price = excluded.mean_price,
             std_dev = excluded.std_dev,

@@ -4,29 +4,32 @@ import time
 query = """
 SELECT
     s.item_id,
-    ROUND((s.moving_avg - l.moving_avg) / l.moving_avg * 100, 2) AS momentum_pct
+    ROUND(((s.moving_avg - l.moving_avg) / l.moving_avg * 100)::NUMERIC, 2) AS momentum_pct
 FROM moving_averages s
 JOIN moving_averages l
     ON s.item_id = l.item_id
-WHERE s.window_size = ?
-    AND l.window_size = ?
+WHERE s.window_size = %s
+    AND l.window_size = %s
 """
 
 def calculate_momentum(conn, short_window, long_window):
-    return conn.execute(query, (short_window,long_window)).fetchall()
+    cur = conn.cursor()
+    cur.execute(query, (short_window,long_window))
+    return cur.fetchall()
 
 def store_momentum(conn, rows, short_window, long_window, calculated_at):
     data = [(item_id, short_window, long_window, momentum_pct, calculated_at) for item_id, momentum_pct in rows]
-    conn.executemany("""
+    cur = conn.cursor()
+    cur.executemany("""
         INSERT INTO momentum (item_id, short_window, long_window, momentum_pct, calculated_at)
-        VALUES (?, ?, ?, ?, ?)
+        VALUES (%s, %s, %s, %s, %s)
         ON CONFLICT(item_id, short_window, long_window) DO UPDATE SET
             momentum_pct = excluded.momentum_pct,
             calculated_at = excluded.calculated_at                 
     """, data)
     conn.commit()
 
-MOMENTUM_PAIRS = [(6, 48), (48, 336)]
+MOMENTUM_PAIRS = [(36,288), (288, 2016)]
 
 if __name__ == "__main__":
     conn = get_connection()
