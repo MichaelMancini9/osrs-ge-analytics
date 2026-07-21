@@ -7,14 +7,17 @@ WITH latest AS(
     FROM price_snapshots
     WHERE collected_at = (SELECT MAX(collected_at) FROM price_snapshots)
     ),
-    past AS(
-        SELECT item_id, high_price
-        FROM price_snapshots
-        WHERE collected_at <= (
-            (SELECT MAX(collected_at) FROM price_snapshots) - 86400
-        )
-        GROUP BY item_id
-        HAVING collected_at = MAX(collected_at)
+     past AS (
+        SELECT ps.item_id, ps.high_price
+        FROM price_snapshots ps
+        JOIN (
+            SELECT item_id, MAX(collected_at) AS max_collected_at
+            FROM price_snapshots
+            WHERE collected_at <= (SELECT MAX(collected_at) FROM price_snapshots) - 86400
+            GROUP BY item_id
+        ) latest_past     
+        ON ps.item_id = latest_past.item_id
+        AND ps.collected_at = latest_past.max_collected_at
     )
     SELECT 
         latest.item_id,
